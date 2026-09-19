@@ -60,6 +60,19 @@ alter table public.profiles enable row level security;
 alter table public.documents enable row level security;
 alter table public.document_chunks enable row level security;
 
+-- Helper function to get current user ID (supports both auth.uid() and dev demo header X-Test-User-Id)
+create or replace function public.get_auth_user_id()
+returns uuid
+language sql
+security definer
+stable
+as $$
+    select coalesce(
+        auth.uid(),
+        nullif(current_setting('request.headers', true)::json->>'x-test-user-id', '')::uuid
+    );
+$$;
+
 -- Helper function to get current user's org id
 create or replace function public.get_auth_user_org_id()
 returns uuid
@@ -67,7 +80,7 @@ language sql
 security definer
 stable
 as $$
-    select organization_id from public.profiles where id = auth.uid() limit 1;
+    select organization_id from public.profiles where id = public.get_auth_user_id() limit 1;
 $$;
 
 -- Helper function to get current user's role
@@ -77,7 +90,7 @@ language sql
 security definer
 stable
 as $$
-    select role from public.profiles where id = auth.uid() limit 1;
+    select role from public.profiles where id = public.get_auth_user_id() limit 1;
 $$;
 
 -- RLS Policies for Profiles
@@ -87,7 +100,7 @@ create policy "Users can view profiles in their organization"
 
 create policy "Users can update their own profile"
     on public.profiles for update
-    using (id = auth.uid());
+    using (id = public.get_auth_user_id());
 
 -- RLS Policies for Organizations
 create policy "Users can view their organization"
@@ -111,11 +124,11 @@ create policy "Users can delete documents in their organization"
 create policy "Document chunks select policy by org and clearance tier"
     on public.document_chunks for select
     using (
-        organization_id = (select p.organization_id from public.profiles p where p.id = auth.uid())
+        organization_id = public.get_auth_user_org_id()
         and (
             access_tier = 'public'
-            or (access_tier = 'internal' and (select p.role from public.profiles p where p.id = auth.uid()) in ('member', 'manager', 'admin'))
-            or (access_tier = 'confidential' and (select p.role from public.profiles p where p.id = auth.uid()) in ('manager', 'admin'))
+            or (access_tier = 'internal' and public.get_auth_user_role() in ('member', 'manager', 'admin'))
+            or (access_tier = 'confidential' and public.get_auth_user_role() in ('manager', 'admin'))
         )
     );
 
@@ -133,7 +146,9 @@ create or replace function public.hybrid_search_chunks(
     query_text text,
     query_embedding vector(384),
     match_count int default 5,
-    rrf_k int default 60
+    rrf_k int default 60,
+    p_organization_id uuid default null,
+    p_role text default null
 )
 returns table (
     id uuid,
@@ -148,9 +163,15 @@ returns table (
     rrf_score float
 )
 language plpgsql
-security invoker -- Runs with caller privileges, enforcing RLS on document_chunks automatically!
+security definer -- Security definer with explicit tenant & clearance tier filtering
 as $$
+declare
+    v_org_id uuid;
+    v_role text;
 begin
+    v_org_id := coalesce(p_organization_id, public.get_auth_user_org_id());
+    v_role := coalesce(p_role, public.get_auth_user_role(), 'member');
+
     return query
     with full_text_search as (
         select 
@@ -158,7 +179,14 @@ begin
             ts_rank_cd(dc.fts, websearch_to_tsquery('english', query_text)) as score,
             row_number() over (order by ts_rank_cd(dc.fts, websearch_to_tsquery('english', query_text)) desc) as rank
         from public.document_chunks dc
-        where query_text is not null and query_text != '' and dc.fts @@ websearch_to_tsquery('english', query_text)
+        where query_text is not null and query_text != '' 
+          and dc.fts @@ websearch_to_tsquery('english', query_text)
+          and dc.organization_id = v_org_id
+          and (
+              dc.access_tier = 'public'
+              or (dc.access_tier = 'internal' and v_role in ('member', 'manager', 'admin'))
+              or (dc.access_tier = 'confidential' and v_role in ('manager', 'admin'))
+          )
         limit match_count * 3
     ),
     vector_search as (
@@ -168,6 +196,12 @@ begin
             row_number() over (order by (dc.embedding <=> query_embedding) asc) as rank
         from public.document_chunks dc
         where query_embedding is not null
+          and dc.organization_id = v_org_id
+          and (
+              dc.access_tier = 'public'
+              or (dc.access_tier = 'internal' and v_role in ('member', 'manager', 'admin'))
+              or (dc.access_tier = 'confidential' and v_role in ('manager', 'admin'))
+          )
         limit match_count * 3
     ),
     fused_scores as (

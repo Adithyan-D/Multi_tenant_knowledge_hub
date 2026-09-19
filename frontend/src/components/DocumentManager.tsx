@@ -69,8 +69,15 @@ export const DocumentManager: React.FC<Props> = ({ activePersona }) => {
         setFile(null);
         fetchDocuments();
       } else {
-        const err = await res.json();
-        setUploadStatus(`Upload failed: ${err.detail || 'Unknown error'}`);
+        let errMessage = 'Server error';
+        try {
+          const err = await res.json();
+          errMessage = err.detail || JSON.stringify(err);
+        } catch {
+          const text = await res.text();
+          errMessage = text || `HTTP ${res.status}`;
+        }
+        setUploadStatus(`Upload failed: ${errMessage}`);
       }
     } catch (err: any) {
       setUploadStatus(`Network error: ${err.message}`);

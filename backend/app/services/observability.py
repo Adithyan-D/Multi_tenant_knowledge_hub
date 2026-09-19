@@ -35,48 +35,49 @@ class ObservabilityService:
             return
 
         try:
-            trace = self.client.trace(
-                name="rag-query",
-                user_id=user_id,
-                metadata={
-                    "organization_id": organization_id,
-                    "model_name": model_name,
-                    "retrieved_chunk_count": len(retrieved_chunks)
-                },
-                input={"query": query}
-            )
+            if hasattr(self.client, "trace"):
+                trace = self.client.trace(
+                    name="rag-query",
+                    user_id=user_id,
+                    metadata={
+                        "organization_id": organization_id,
+                        "model_name": model_name,
+                        "retrieved_chunk_count": len(retrieved_chunks)
+                    },
+                    input={"query": query}
+                )
 
-            # Record Retrieval Span
-            trace.span(
-                name="retrieval-hybrid-rrf",
-                input={"query": query},
-                output={"chunks": [
-                    {
-                        "id": c.get("id"),
-                        "document_title": c.get("document_title"),
-                        "access_tier": c.get("access_tier"),
-                        "rrf_score": c.get("rrf_score"),
-                        "similarity": c.get("similarity")
-                    } for c in retrieved_chunks
-                ]}
-            )
+                # Record Retrieval Span
+                trace.span(
+                    name="retrieval-hybrid-rrf",
+                    input={"query": query},
+                    output={"chunks": [
+                        {
+                            "id": c.get("id"),
+                            "document_title": c.get("document_title"),
+                            "access_tier": c.get("access_tier"),
+                            "rrf_score": c.get("rrf_score"),
+                            "similarity": c.get("similarity")
+                        } for c in retrieved_chunks
+                    ]}
+                )
 
-            # Record Generation Event
-            trace.generation(
-                name="llm-generation",
-                model=model_name,
-                input=query,
-                output=response_text,
-                usage={
-                    "prompt_tokens": prompt_tokens,
-                    "completion_tokens": completion_tokens,
-                    "total_tokens": prompt_tokens + completion_tokens
-                },
-                latency=latency_seconds
-            )
+                # Record Generation Event
+                trace.generation(
+                    name="llm-generation",
+                    model=model_name,
+                    input=query,
+                    output=response_text,
+                    usage={
+                        "prompt_tokens": prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "total_tokens": prompt_tokens + completion_tokens
+                    },
+                    latency=latency_seconds
+                )
 
-            self.client.flush()
+                self.client.flush()
         except Exception as e:
-            print(f"[Observability Error] Failed to log trace to Langfuse: {e}")
+            print(f"[Observability Warning] Skipping Langfuse trace: {e}")
 
 observability_service = ObservabilityService()

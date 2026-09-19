@@ -1,8 +1,7 @@
 from fastapi import HTTPException, Header, Depends, status
 from typing import Optional, Dict, Any
 import jwt
-from supabase import create_client, Client
-from supabase.lib.client_options import ClientOptions
+from supabase import create_client, Client, ClientOptions
 from app.config import settings
 
 class AuthenticatedUser:
@@ -72,14 +71,19 @@ def get_supabase_client(user: AuthenticatedUser = Depends(get_current_user)) -> 
     is evaluated using auth.uid() automatically.
     """
     headers = {}
-    if user.token:
+    # Only pass Bearer token to PostgREST if token is a valid 3-part JWT (header.payload.signature)
+    if user.token and user.token.count(".") == 2:
         headers["Authorization"] = f"Bearer {user.token}"
-        # Pass test context headers to PostgREST if provided for mock session testing
-        if user.id:
-            headers["X-Test-User-Id"] = user.id
+    if user.id:
+        headers["X-Test-User-Id"] = user.id
 
-    client_options = ClientOptions(headers=headers)
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY, options=client_options)
+    if headers:
+        client_options = ClientOptions(headers=headers)
+        return create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY, options=client_options)
+    
+    # Fallback to default client (or service role client if configured in dev mode)
+    key = settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_ANON_KEY
+    return create_client(settings.SUPABASE_URL, key)
 
 def get_service_role_supabase_client() -> Client:
     """

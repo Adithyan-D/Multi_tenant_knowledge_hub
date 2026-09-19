@@ -1,0 +1,22 @@
+# Acme Corporation Operations & IT Policy 2026
+
+## Section 1: Work Hours and Core Schedules
+- Standard working hours are 9:00 AM to 5:00 PM EST, Monday through Friday.
+- Core collaboration hours are 10:00 AM to 3:00 PM EST, during which all team members must be reachable via Slack.
+- Flexible remote work is permitted up to 3 days per week with manager approval.
+
+## Section 2: IT Equipment and Reimbursement
+- Every new full-time employee is provisioned a MacBook Pro (16-inch, M3 Pro) or a ThinkPad P1 Gen 6.
+- The company provides a one-time home office setup stipend of $1,200.
+- Monthly broadband internet reimbursement is capped at $75 per month. Submit receipts by the 25th of each month through Expensify.
+
+## Section 3: IT Security and WiFi Credentials
+- Corporate Office Network SSID: "Acme-Secure-Corp"
+- Guest Network SSID: "Acme-Visitors"
+- VPN Gateway URL: vpn.acme-corp.internal:8443
+- Passwords must be at least 16 characters long, contain at least one special character, and be rotated every 90 days.
+- In case of a suspected security breach, contact the InfoSec Incident Response Team immediately at security-ops@acme-corp.internal or dial extension #4409.
+
+## Section 4: Project Code Names
+- Project Falcon: Autonomous analytics pipeline scheduled for Q3 deployment.
+- Project Titan: Global multi-cloud data migration effort.
