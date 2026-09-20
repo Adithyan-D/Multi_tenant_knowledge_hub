@@ -193,17 +193,9 @@ export const DocumentManager: React.FC<Props> = ({ activePersona }) => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {(doc.access_tiers || ['public']).map((tier) => {
-                    let badgeClass = 'bg-slate-200 text-slate-700';
-                    if (tier === 'public') badgeClass = 'bg-emerald-100 text-emerald-800';
-                    if (tier === 'internal') badgeClass = 'bg-amber-100 text-amber-800';
-                    if (tier === 'confidential') badgeClass = 'bg-rose-100 text-rose-800';
-                    return (
-                      <span key={tier} className={`text-[10px] font-semibold px-2 py-0.5 rounded font-mono uppercase ${badgeClass}`}>
-                        {tier}
-                      </span>
-                    );
-                  })}
+                  <span className="text-[10px] font-medium text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded font-mono">
+                    {doc.chunk_count ? `${doc.chunk_count} ${doc.chunk_count === 1 ? 'chunk' : 'chunks'}` : 'ingested'}
+                  </span>
                 </div>
               </div>
             ))}

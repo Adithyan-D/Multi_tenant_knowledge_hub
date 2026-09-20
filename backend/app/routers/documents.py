@@ -151,19 +151,37 @@ async def list_documents(
     db: Client = Depends(get_supabase_client)
 ):
     """
-    Returns list of uploaded documents visible to user's organization.
+    Returns list of uploaded documents visible to user's organization and authorized clearance level.
+    - Public documents are visible across all companies.
+    - Internal and Confidential documents are visible only to the uploading company.
     """
     admin_db = get_service_role_supabase_client()
     org_id = user.organization_id or "11111111-1111-1111-1111-111111111111"
+    user_role = user.role or "member"
 
     try:
-        res = admin_db.table("documents").select("id, title, access_tier:document_chunks(access_tier), created_at").eq("organization_id", org_id).execute()
+        res = admin_db.table("documents").select("id, organization_id, title, access_tier:document_chunks(access_tier), created_at").execute()
         
-        # Process documents and aggregate clearance tiers
+        # Process documents and filter by authorized clearance tiers & tenancy
         documents = []
         for doc in (res.data or []):
+            doc_org_id = doc.get("organization_id")
             chunks_info = doc.get("access_tier", [])
             tiers = set(c.get("access_tier") for c in chunks_info if isinstance(c, dict)) if chunks_info else {"public"}
+            
+            is_same_org = doc_org_id == org_id
+            is_public_doc = "public" in tiers
+
+            # Security rules:
+            # 1. Public tier docs -> visible globally across all companies
+            # 2. Internal/Confidential docs -> visible ONLY within the same company
+            if not is_public_doc and not is_same_org:
+                continue
+
+            # 3. Confidential docs -> visible ONLY to manager and admin roles within the same company
+            if is_same_org and user_role == "member" and "confidential" in tiers and "public" not in tiers and "internal" not in tiers:
+                continue
+
             documents.append({
                 "id": doc["id"],
                 "title": doc["title"],

@@ -107,10 +107,13 @@ create policy "Users can view their organization"
     on public.organizations for select
     using (id = public.get_auth_user_org_id());
 
--- RLS Policies for Documents
-create policy "Users can view documents in their organization"
+-- RLS Policies for Documents (Public documents visible globally, internal/confidential isolated by org)
+create policy "Documents select policy"
     on public.documents for select
-    using (organization_id = public.get_auth_user_org_id());
+    using (
+        organization_id = public.get_auth_user_org_id()
+        or id in (select document_id from public.document_chunks where access_tier = 'public')
+    );
 
 create policy "Users can insert documents into their organization"
     on public.documents for insert
@@ -120,15 +123,17 @@ create policy "Users can delete documents in their organization"
     on public.documents for delete
     using (organization_id = public.get_auth_user_org_id());
 
--- RLS Policies for Document Chunks (Strict Access Control)
+-- RLS Policies for Document Chunks (Public chunks visible globally, internal/confidential isolated by org)
 create policy "Document chunks select policy by org and clearance tier"
     on public.document_chunks for select
     using (
-        organization_id = public.get_auth_user_org_id()
-        and (
-            access_tier = 'public'
-            or (access_tier = 'internal' and public.get_auth_user_role() in ('member', 'manager', 'admin'))
-            or (access_tier = 'confidential' and public.get_auth_user_role() in ('manager', 'admin'))
+        access_tier = 'public'
+        or (
+            organization_id = public.get_auth_user_org_id()
+            and (
+                (access_tier = 'internal' and public.get_auth_user_role() in ('member', 'manager', 'admin'))
+                or (access_tier = 'confidential' and public.get_auth_user_role() in ('manager', 'admin'))
+            )
         )
     );
 
@@ -181,11 +186,15 @@ begin
         from public.document_chunks dc
         where query_text is not null and query_text != '' 
           and dc.fts @@ websearch_to_tsquery('english', query_text)
-          and dc.organization_id = v_org_id
           and (
               dc.access_tier = 'public'
-              or (dc.access_tier = 'internal' and v_role in ('member', 'manager', 'admin'))
-              or (dc.access_tier = 'confidential' and v_role in ('manager', 'admin'))
+              or (
+                  dc.organization_id = v_org_id
+                  and (
+                      (dc.access_tier = 'internal' and v_role in ('member', 'manager', 'admin'))
+                      or (dc.access_tier = 'confidential' and v_role in ('manager', 'admin'))
+                  )
+              )
           )
         limit match_count * 3
     ),
@@ -196,11 +205,15 @@ begin
             row_number() over (order by (dc.embedding <=> query_embedding) asc) as rank
         from public.document_chunks dc
         where query_embedding is not null
-          and dc.organization_id = v_org_id
           and (
               dc.access_tier = 'public'
-              or (dc.access_tier = 'internal' and v_role in ('member', 'manager', 'admin'))
-              or (dc.access_tier = 'confidential' and v_role in ('manager', 'admin'))
+              or (
+                  dc.organization_id = v_org_id
+                  and (
+                      (dc.access_tier = 'internal' and v_role in ('member', 'manager', 'admin'))
+                      or (dc.access_tier = 'confidential' and v_role in ('manager', 'admin'))
+                  )
+              )
           )
         limit match_count * 3
     ),

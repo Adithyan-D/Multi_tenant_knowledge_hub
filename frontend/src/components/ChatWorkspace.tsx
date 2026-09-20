@@ -4,6 +4,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { UserPersona, ChatMessage, ChunkCitation } from '@/lib/types';
 import { Send, Bot, User, Sparkles, AlertCircle, Bookmark } from 'lucide-react';
 
+import ReactMarkdown from 'react-markdown';
+
 interface Props {
   activePersona: UserPersona;
   onSelectCitation: (citation: ChunkCitation) => void;
@@ -136,52 +138,15 @@ export const ChatWorkspace: React.FC<Props> = ({ activePersona, onSelectCitation
     }
   };
 
-  // Render text with interactive citation pills [CHUNK-N]
+  // Render text cleanly using Markdown without raw bracket tags like [CHUNK-1] or [CHUNK 1]
   const renderMessageTextWithCitations = (text: string, citations?: ChunkCitation[]) => {
     if (!text) return null;
-
-    const citationRegex = /\[CHUNK-(\d+)\]/g;
-    const parts = [];
-    let lastIndex = 0;
-    let match;
-
-    while ((match = citationRegex.exec(text)) !== null) {
-      const matchText = match[0]; // e.g. "[CHUNK-1]"
-      const chunkIndex = parseInt(match[1], 10);
-      const startIndex = match.index;
-
-      if (startIndex > lastIndex) {
-        parts.push(text.substring(lastIndex, startIndex));
-      }
-
-      const citationObj = citations?.find(
-        (c) => c.citation_id === `CHUNK-${chunkIndex}`
-      );
-
-      parts.push(
-        <button
-          key={`cit-${startIndex}`}
-          onClick={() => {
-            if (citationObj) {
-              onSelectCitation(citationObj);
-            }
-          }}
-          className="inline-flex items-center gap-1 px-2 py-0.5 mx-0.5 rounded-md bg-sky-100 hover:bg-sky-200 border border-sky-300 text-sky-800 font-bold text-xs font-mono transition-colors"
-          title={citationObj ? `Source: ${citationObj.document_title}` : 'Citation details'}
-        >
-          <Bookmark className="w-3 h-3 text-sky-600" />
-          {matchText}
-        </button>
-      );
-
-      lastIndex = citationRegex.lastIndex;
-    }
-
-    if (lastIndex < text.length) {
-      parts.push(text.substring(lastIndex));
-    }
-
-    return <div className="whitespace-pre-wrap leading-relaxed">{parts}</div>;
+    const cleanText = text.replace(/\[CHUNK[- ]?\d+\]/gi, '').trim();
+    return (
+      <div className="prose prose-slate max-w-none text-xs sm:text-sm leading-relaxed space-y-2 text-slate-800">
+        <ReactMarkdown>{cleanText || text}</ReactMarkdown>
+      </div>
+    );
   };
 
   return (
@@ -246,15 +211,15 @@ export const ChatWorkspace: React.FC<Props> = ({ activePersona, onSelectCitation
                 {/* Citations Preview pills below message */}
                 {!isUser && msg.citations && msg.citations.length > 0 && (
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[11px] font-semibold text-slate-400 mr-1">Retrieved Sources:</span>
+                    <span className="text-[11px] font-semibold text-slate-400 mr-1">Verified Sources:</span>
                     {msg.citations.map((c) => (
                       <button
-                        key={c.citation_id}
+                        key={c.id || c.citation_id}
                         onClick={() => onSelectCitation(c)}
-                        className="text-[11px] bg-white border border-slate-200 hover:border-sky-400 px-2 py-0.5 rounded shadow-2xs font-mono text-slate-700 flex items-center gap-1 transition-colors"
+                        className="text-[11px] bg-white border border-slate-200 hover:border-sky-400 px-2.5 py-1 rounded-md text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs font-medium"
                       >
-                        <span className="text-sky-600 font-bold">{c.citation_id}</span>
-                        <span className="text-slate-500 truncate max-w-[120px]">{c.document_title}</span>
+                        <Bookmark className="w-3 h-3 text-sky-600" />
+                        <span className="text-slate-700 truncate max-w-[160px]">{c.document_title}</span>
                       </button>
                     ))}
                   </div>

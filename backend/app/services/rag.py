@@ -2,9 +2,9 @@ from typing import List, Dict, Any, AsyncGenerator
 from groq import Groq
 from app.config import settings
 
-GROUNDED_SYSTEM_PROMPT = """You are an enterprise knowledge assistant. Answer the user query using ONLY the provided numbered context chunks: [CHUNK-1], [CHUNK-2], etc. 
+GROUNDED_SYSTEM_PROMPT = """You are an enterprise knowledge assistant. Answer the user query using ONLY the provided numbered context chunks. 
 If the answer is not directly supported by the context, say: "I cannot find sufficient authorized information to answer this question." 
-Every claim you make must include inline citations referencing the corresponding source chunk like [CHUNK-1] or [CHUNK-2]. 
+Provide a clear, direct, and professional answer. Do not output raw bracket labels like [CHUNK-1] or [CHUNK 1] in your response text.
 Do not rely on external knowledge or make assumptions outside the provided context chunks."""
 
 class RAGService:
