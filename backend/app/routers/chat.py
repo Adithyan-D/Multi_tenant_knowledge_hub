@@ -10,6 +10,7 @@ from app.auth import get_current_user, get_supabase_client, get_service_role_sup
 from app.services.embedding import embedding_service
 from app.services.rag import rag_service
 from app.services.observability import observability_service
+from app.services.store import dev_store
 from app.config import settings
 from supabase import Client
 
@@ -64,31 +65,17 @@ async def chat_rag_stream(
         print(f"[Chat Router] RPC Execution Warning: {e}")
         chunks = []
 
-    # Fallback direct query on document_chunks if RPC returns 0 chunks
-    if not chunks and user.organization_id:
-        try:
-            fallback_res = admin_db.table("document_chunks").select("id, document_id, organization_id, content, chunk_index, access_tier, documents(title)").eq("organization_id", user.organization_id).limit(request.match_count or 5).execute()
-            raw_data = fallback_res.data or []
-            chunks = []
-            for item in raw_data:
-                doc_info = item.get("documents")
-                title = doc_info.get("title") if isinstance(doc_info, dict) else "Document"
-                tier = item.get("access_tier", "public")
-                role = user.role or "member"
-                if tier == "public" or (tier == "internal" and role in ["member", "manager", "admin"]) or (tier == "confidential" and role in ["manager", "admin"]):
-                    chunks.append({
-                        "id": item["id"],
-                        "document_id": item["document_id"],
-                        "organization_id": item["organization_id"],
-                        "content": item["content"],
-                        "chunk_index": item["chunk_index"],
-                        "access_tier": tier,
-                        "document_title": title,
-                        "similarity": 0.85,
-                        "rrf_score": 0.03
-                    })
-        except Exception as fb_err:
-            print(f"[Chat Router] Direct query fallback warning: {fb_err}")
+    # Fallback search using dev_store if Supabase returns 0 chunks or is unreachable
+    if not chunks:
+        user_org_id = user.organization_id or "11111111-1111-1111-1111-111111111111"
+        user_role = user.role or "member"
+        chunks = dev_store.search_chunks(
+            query_text=query_text,
+            query_embedding=query_embedding,
+            user_org_id=user_org_id,
+            user_role=user_role,
+            limit=request.match_count or 5
+        )
 
     # 3. Stream generator
     async def sse_event_stream():

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserPersona, DocumentItem, AccessTier } from '@/lib/types';
-import { UploadCloud, FileText, Lock, ShieldAlert, CheckCircle2, RefreshCw, Layers } from 'lucide-react';
+import { UploadCloud, FileText, Lock, ShieldAlert, CheckCircle2, RefreshCw, Layers, AlertTriangle, Info, Trash2 } from 'lucide-react';
 
 interface Props {
   activePersona: UserPersona;
@@ -15,6 +15,8 @@ export const DocumentManager: React.FC<Props> = ({ activePersona }) => {
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+
+  const isUploadAllowed = activePersona.role === 'admin' || activePersona.role === 'manager';
 
   const fetchDocuments = async () => {
     setIsLoadingDocs(true);
@@ -41,9 +43,32 @@ export const DocumentManager: React.FC<Props> = ({ activePersona }) => {
     fetchDocuments();
   }, [activePersona]);
 
+  const handleDeleteDocument = async (docId: string, title: string) => {
+    if (!window.confirm(`Are you sure you want to permanently delete "${title}" and all its chunks?`)) return;
+    try {
+      const res = await fetch(`/api/backend/documents/${docId}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Test-User-Id': activePersona.id,
+          'X-Test-Role': activePersona.role,
+          'X-Test-Org-Id': activePersona.organizationId,
+        },
+      });
+      if (res.ok) {
+        setUploadStatus(`Document "${title}" permanently deleted.`);
+        fetchDocuments();
+      } else {
+        const err = await res.json();
+        alert(`Failed to delete document: ${err.detail || 'Access denied'}`);
+      }
+    } catch (err: any) {
+      alert(`Network error deleting document: ${err.message}`);
+    }
+  };
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) return;
+    if (!file || !isUploadAllowed) return;
 
     setIsUploading(true);
     setUploadStatus(null);
@@ -110,51 +135,96 @@ export const DocumentManager: React.FC<Props> = ({ activePersona }) => {
 
       {/* Upload Form */}
       <form onSubmit={handleUpload} className="p-5 space-y-4 border-b border-slate-100">
-        {/* Dropzone */}
-        <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-sky-400 transition-colors bg-slate-50/50">
-          <input
-            type="file"
-            accept=".txt,.md,.pdf"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="hidden"
-            id="file-upload-input"
-          />
-          <label htmlFor="file-upload-input" className="cursor-pointer block space-y-2">
-            <FileText className="w-8 h-8 text-sky-500 mx-auto" />
-            <p className="text-xs font-semibold text-slate-700">
-              {file ? file.name : 'Click to upload or drag & drop (.txt, .md, .pdf)'}
+        {!isUploadAllowed ? (
+          /* Role Restriction Banner for Regular Employees */
+          <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-4 text-center space-y-1.5">
+            <ShieldAlert className="w-6 h-6 text-amber-600 mx-auto" />
+            <h3 className="text-xs font-bold text-amber-900">Document Upload Restricted</h3>
+            <p className="text-[11px] text-amber-700 max-w-sm mx-auto">
+              Document upload is restricted to Organization <strong>Managers</strong> and <strong>Admins</strong>.
+              You are signed in as an Employee (<span className="font-mono">{activePersona.role}</span>).
             </p>
-            {file && <p className="text-[11px] text-slate-400">{(file.size / 1024).toFixed(1)} KB</p>}
-          </label>
-        </div>
-
-        {/* Clearance Level Selector */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex-1">
-            <label className="text-xs font-semibold text-slate-700 block mb-1 flex items-center gap-1">
-              <Lock className="w-3.5 h-3.5 text-slate-500" />
-              Security Clearance Tier
-            </label>
-            <select
-              value={accessTier}
-              onChange={(e) => setAccessTier(e.target.value as AccessTier)}
-              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500"
-            >
-              <option value="public">Public (All Organization Users)</option>
-              <option value="internal">Internal (Member, Manager, Admin)</option>
-              <option value="confidential">Confidential (Manager & Admin Only)</option>
-            </select>
           </div>
+        ) : (
+          <>
+            {/* Dropzone */}
+            <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-sky-400 transition-colors bg-slate-50/50">
+              <input
+                type="file"
+                accept=".txt,.md,.pdf"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                disabled={!isUploadAllowed}
+                className="hidden"
+                id="file-upload-input"
+              />
+              <label htmlFor="file-upload-input" className="cursor-pointer block space-y-2">
+                <FileText className="w-8 h-8 text-sky-500 mx-auto" />
+                <p className="text-xs font-semibold text-slate-700">
+                  {file ? file.name : 'Click to upload or drag & drop (.txt, .md, .pdf)'}
+                </p>
+                {file && <p className="text-[11px] text-slate-400">{(file.size / 1024).toFixed(1)} KB</p>}
+              </label>
+            </div>
 
-          <button
-            type="submit"
-            disabled={!file || isUploading}
-            className="mt-5 px-4 py-2 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-semibold text-xs rounded-lg transition-colors flex items-center gap-2 shadow-sm"
-          >
-            {isUploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-            {isUploading ? 'Chunking & Embedding...' : 'Upload & Embed'}
-          </button>
-        </div>
+            {/* Clearance Level Selector */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <label className="text-xs font-semibold text-slate-700 block mb-1 flex items-center gap-1">
+                    <Lock className="w-3.5 h-3.5 text-slate-500" />
+                    Security Clearance Tier
+                  </label>
+                  <select
+                    value={accessTier}
+                    onChange={(e) => setAccessTier(e.target.value as AccessTier)}
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  >
+                    <option value="public">Public (Global Visibility Across All Companies)</option>
+                    <option value="internal">Internal (Visible to All Employees in Company)</option>
+                    <option value="confidential">Confidential (Managers & Admins Only)</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!file || isUploading || !isUploadAllowed}
+                  className="mt-5 px-4 py-2 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-semibold text-xs rounded-lg transition-colors flex items-center gap-2 shadow-sm shrink-0"
+                >
+                  {isUploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                  {isUploading ? 'Ingesting...' : 'Upload & Embed'}
+                </button>
+              </div>
+
+              {/* Dynamic Clearance Tier Warning Callout */}
+              {accessTier === 'public' && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Warning:</strong> Public documents are globally accessible by users across ALL organizations (Company 1, Company 2, etc.).
+                  </span>
+                </div>
+              )}
+
+              {accessTier === 'internal' && (
+                <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-[11px] text-sky-800 flex items-start gap-2">
+                  <Info className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Notice:</strong> Internal documents are visible to all employees, managers, and admins within your organization.
+                  </span>
+                </div>
+              )}
+
+              {accessTier === 'confidential' && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-800 flex items-start gap-2">
+                  <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Restricted:</strong> Confidential documents are restricted strictly to Managers and Admins of your organization. Regular employees cannot view or search these documents.
+                  </span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {uploadStatus && (
           <div className={`p-3 rounded-lg text-xs font-medium flex items-center gap-2 ${
@@ -196,6 +266,15 @@ export const DocumentManager: React.FC<Props> = ({ activePersona }) => {
                   <span className="text-[10px] font-medium text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded font-mono">
                     {doc.chunk_count ? `${doc.chunk_count} ${doc.chunk_count === 1 ? 'chunk' : 'chunks'}` : 'ingested'}
                   </span>
+                  {isUploadAllowed && (
+                    <button
+                      onClick={() => handleDeleteDocument(doc.id, doc.title)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      title="Permanently Delete Document"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
