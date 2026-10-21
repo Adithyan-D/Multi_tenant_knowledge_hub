@@ -30,7 +30,7 @@ export const HeaderBar: React.FC<Props> = ({ activePersona, onSignOut }) => {
                 Supabase RLS Active
               </span>
             </h1>
-            <p className="text-xs text-slate-400">Database-Level Row Security • FastEmbed ONNX • Groq LLM</p>
+            <p className="text-xs text-slate-400">Enterprise AI Search &amp; Document Knowledge Hub</p>
           </div>
         </div>
 

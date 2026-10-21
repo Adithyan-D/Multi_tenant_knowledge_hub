@@ -187,6 +187,7 @@ async def list_documents(
             documents.append({
                 "id": doc["id"],
                 "title": doc["title"],
+                "organization_id": doc_org_id,
                 "created_at": doc["created_at"],
                 "access_tiers": list(tiers),
                 "chunk_count": len(chunks_info) if chunks_info else 0
@@ -212,7 +213,7 @@ async def delete_document(
     db: Client = Depends(get_supabase_client)
 ):
     """
-    Deletes a document and its child chunks. Restricted to Managers and Admins.
+    Deletes a document and its child chunks. Restricted strictly to Managers and Admins of the uploading organization.
     """
     if user.role not in ["admin", "manager"]:
         raise HTTPException(
@@ -223,6 +224,34 @@ async def delete_document(
     admin_db = get_service_role_supabase_client()
     org_id = user.organization_id or "11111111-1111-1111-1111-111111111111"
     user_role = user.role or "member"
+
+    # 1. Fetch document organization ownership
+    doc_org_id = None
+    try:
+        doc_res = admin_db.table("documents").select("organization_id").eq("id", document_id).execute()
+        if doc_res.data:
+            doc_org_id = doc_res.data[0].get("organization_id")
+    except Exception as e:
+        print(f"[Documents Router] Warning fetching document org for delete: {e}")
+
+    # Fallback check in dev_store if not found in Supabase
+    if not doc_org_id:
+        target_dev_doc = next((d for d in dev_store.documents if d["id"] == document_id), None)
+        if target_dev_doc:
+            doc_org_id = target_dev_doc.get("organization_id")
+
+    if not doc_org_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found."
+        )
+
+    # 2. Strict Tenant Deletion Ownership Check
+    if doc_org_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: You can only delete documents uploaded by your own organization."
+        )
 
     deleted_in_supabase = False
     try:
@@ -238,8 +267,8 @@ async def delete_document(
 
     if not deleted_in_supabase and not deleted_in_dev_store:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found or access denied for deletion."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to delete document."
         )
 
     return {"status": "success", "message": f"Document {document_id} permanently deleted."}

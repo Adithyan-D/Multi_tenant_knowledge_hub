@@ -83,9 +83,6 @@ export default function DashboardPage() {
               {activePersona.role !== 'member' && ' Authorized to access Public, Internal, and Confidential clearance tiers.'}
             </span>
           </div>
-          <span className="font-mono text-[11px] bg-sky-950 px-2 py-0.5 rounded border border-sky-700 text-sky-300">
-            Tenant ID: {activePersona.organizationId.slice(0, 8)}...
-          </span>
         </div>
       </div>
 

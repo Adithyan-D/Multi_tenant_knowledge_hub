@@ -266,7 +266,7 @@ export const DocumentManager: React.FC<Props> = ({ activePersona }) => {
                   <span className="text-[10px] font-medium text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded font-mono">
                     {doc.chunk_count ? `${doc.chunk_count} ${doc.chunk_count === 1 ? 'chunk' : 'chunks'}` : 'ingested'}
                   </span>
-                  {isUploadAllowed && (
+                  {(isUploadAllowed && doc.organization_id === activePersona.organizationId) && (
                     <button
                       onClick={() => handleDeleteDocument(doc.id, doc.title)}
                       className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"

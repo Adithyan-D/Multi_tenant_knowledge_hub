@@ -85,8 +85,8 @@ class PersistentDevStore:
         if not target_doc:
             return False
 
-        # Check tenant organization ownership (unless admin)
-        if user_role != "admin" and target_doc["organization_id"] != user_org_id:
+        # Check tenant organization ownership
+        if target_doc["organization_id"] != user_org_id:
             return False
 
         # Remove document and child chunks (cascading deletion)
@@ -113,6 +113,7 @@ class PersistentDevStore:
             result.append({
                 "id": doc["id"],
                 "title": doc["title"],
+                "organization_id": doc["organization_id"],
                 "created_at": doc["created_at"],
                 "access_tiers": list(tiers),
                 "chunk_count": len(doc_chunks)

@@ -121,7 +121,10 @@ create policy "Users can insert documents into their organization"
 
 create policy "Users can delete documents in their organization"
     on public.documents for delete
-    using (organization_id = public.get_auth_user_org_id());
+    using (
+        organization_id = public.get_auth_user_org_id()
+        and public.get_auth_user_role() in ('admin', 'manager')
+    );
 
 -- RLS Policies for Document Chunks (Public chunks visible globally, internal/confidential isolated by org)
 create policy "Document chunks select policy by org and clearance tier"
@@ -143,7 +146,10 @@ create policy "Users can insert document chunks into their organization"
 
 create policy "Users can delete document chunks in their organization"
     on public.document_chunks for delete
-    using (organization_id = public.get_auth_user_org_id());
+    using (
+        organization_id = public.get_auth_user_org_id()
+        and public.get_auth_user_role() in ('admin', 'manager')
+    );
 
 
 -- 7. Hybrid Search RPC Function with Reciprocal Rank Fusion (RRF)
