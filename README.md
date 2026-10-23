@@ -24,24 +24,24 @@ A production-grade, zero-cost, multi-tenant enterprise Retrieval-Augmented Gener
 ```mermaid
 flowchart TD
     subgraph Frontend ["Frontend (Next.js App Router)"]
-        UI[Chat & Document Management UI]
-        AuthUI[Tenant & Role Switcher Header]
-        CitationDrawer[Interactive Citation Drawer]
+        UI["Chat & Document Management UI"]
+        AuthUI["Tenant & Role Switcher Header"]
+        CitationDrawer["Interactive Citation Drawer"]
     end
 
     subgraph Backend ["Backend (FastAPI)"]
-        API[FastAPI Gateway & Auth Middleware]
-        Chunker[Semantic Paragraph Chunker]
-        Embedder[FastEmbed ONNX Engine\n(bge-small-en-v1.5 - 384d)]
-        RAGService[Groq LLM Service\n(llama-3.3-70b-versatile)]
-        Observer[Langfuse Observability & Tracing]
+        API["FastAPI Gateway & Auth Middleware"]
+        Chunker["Semantic Paragraph Chunker"]
+        Embedder["FastEmbed ONNX Engine<br/>(bge-small-en-v1.5 - 384d)"]
+        RAGService["Groq LLM Service<br/>(llama-3.3-70b-versatile)"]
+        Observer["Langfuse Observability & Tracing"]
     end
 
     subgraph Database ["Database & Auth (Supabase PostgreSQL)"]
-        PG[(PostgreSQL + pgvector)]
-        RLS[Row-Level Security Policies\n(Org & Clearance Tier Checks)]
-        RPC[hybrid_search_chunks RPC\n(Vector Cosine + FTS RRF)]
-        Auth[Supabase Auth JWT]
+        PG[("PostgreSQL + pgvector")]
+        RLS["Row-Level Security Policies<br/>(Org & Clearance Tier Checks)"]
+        RPC["hybrid_search_chunks RPC<br/>(Vector Cosine + FTS RRF)"]
+        Auth["Supabase Auth JWT"]
     end
 
     UI -->|JWT + API Call| API
