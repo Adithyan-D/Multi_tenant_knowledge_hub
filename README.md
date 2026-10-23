@@ -1,4 +1,19 @@
 # Multi-Tenant Enterprise RAG System with Supabase RLS & Hybrid Search
+<img width="1920" height="836" alt="image" src="https://github.com/user-attachments/assets/229a212b-ae42-4c20-974a-369fa55e29e7" />
+<img width="1920" height="836" alt="image" src="https://github.com/user-attachments/assets/fbd24e5c-5265-448d-ac1e-14f6cd563591" />
+<img width="1920" height="836" alt="image" src="https://github.com/user-attachments/assets/c6dff28d-4867-4c61-a557-5654bc7810e8" />
+<img width="1920" height="836" alt="image" src="https://github.com/user-attachments/assets/0bc494e4-3d1b-417b-985a-9683a86818c5" />
+<img width="1920" height="836" alt="image" src="https://github.com/user-attachments/assets/d3dd5e69-883b-4240-9635-c8657a3dda09" />
+<img width="1920" height="836" alt="image" src="https://github.com/user-attachments/assets/05797ffd-8eb4-4cea-9d5d-71c6fdd06eba" />
+
+
+
+
+
+
+
+
+
 
 A production-grade, zero-cost, multi-tenant enterprise Retrieval-Augmented Generation (RAG) system featuring **database-level Row-Level Security (RLS)** in PostgreSQL, local ONNX embeddings (`BAAI/bge-small-en-v1.5`), Reciprocal Rank Fusion (RRF) hybrid search, Groq LLM streaming (`llama-3.3-70b-versatile`), Langfuse observability, and a Next.js client with interactive citation inspection.
 
